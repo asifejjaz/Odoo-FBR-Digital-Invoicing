@@ -67,13 +67,25 @@ class AccountMove(models.Model):
             desc = mapping.get(move.move_type)
             move.fbr_doc_type_id = doc_type_model.search([('description', '=', desc)], limit=1) if desc else False
 
+    @staticmethod
+    def _fbr_clean_address(raw_address):
+        # contact_address pads in a blank line for every unset address component (city/state/
+        # country) - e.g. a partner with only `street` set renders as "Street\n\n  \n". FBR's
+        # parser rejects that as malformed JSON (confirmed directly - this exact pattern broke
+        # a real submission), so collapse it to just the non-empty lines instead of trusting
+        # contact_address verbatim.
+        if not raw_address:
+            return False
+        lines = [line.strip() for line in raw_address.split('\n')]
+        return ', '.join(line for line in lines if line) or False
+
     @api.depends('company_id', 'company_id.vat', 'company_id.name', 'company_id.fbr_province_id',
                  'company_id.partner_id.contact_address')
     def _compute_fbr_seller_defaults(self):
         for move in self:
             move.fbr_seller_ntn_cnic = move.company_id.vat or False
             move.fbr_seller_business_name = move.company_id.name or False
-            move.fbr_seller_address = move.company_id.partner_id.contact_address or False
+            move.fbr_seller_address = move._fbr_clean_address(move.company_id.partner_id.contact_address)
             # Sourced directly from res.company.fbr_province_id (set once during company setup -
             # see README Part 2), not inferred from company.state_id by fuzzy name-matching.
             # That old approach silently produced nothing for non-Pakistani company records and
@@ -92,7 +104,7 @@ class AccountMove(models.Model):
         self.fbr_buyer_ntn_cnic = self.partner_id.fbr_ntn_cnic or False
         self.fbr_buyer_business_name = self.partner_id.name or False
         self.fbr_buyer_province_id = self.partner_id.fbr_province_id.id or False
-        self.fbr_buyer_address = self.partner_id.contact_address or False
+        self.fbr_buyer_address = self._fbr_clean_address(self.partner_id.contact_address)
         self.fbr_buyer_registration_type = (
             'Registered' if self.partner_id.fbr_registration_status == 'registered' else 'Unregistered'
         )
@@ -160,8 +172,16 @@ class AccountMoveLine(models.Model):
     fbr_rate_id = fields.Many2one('fbr.tax.rate', string='FBR Rate',
         help='Options depend on Sale Type + Province + invoice date - fetched live from FBR, see the Refresh Rates button.')
     fbr_uom_id = fields.Many2one('fbr.uom', string='FBR UoM')
-    fbr_value_sales_excluding_st = fields.Float(string='FBR Value Excl. ST')
-    fbr_sales_tax_applicable = fields.Float(string='FBR Sales Tax')
+    # Defaulted from the line's real computed amounts (price_subtotal/price_total, which Odoo
+    # itself derives from quantity x unit price x applied taxes) - previously these were plain,
+    # never-populated Float fields defaulting to 0, so every real invoice sent FBR a payload
+    # claiming zero sales value and zero tax regardless of the actual transaction amount. Still
+    # store=True/readonly=False so a line can override if the real FBR-reportable value needs
+    # to differ from Odoo's own tax computation.
+    fbr_value_sales_excluding_st = fields.Float(
+        string='FBR Value Excl. ST', compute='_compute_fbr_amounts', store=True, readonly=False)
+    fbr_sales_tax_applicable = fields.Float(
+        string='FBR Sales Tax', compute='_compute_fbr_amounts', store=True, readonly=False)
     fbr_fixed_notified_value = fields.Float(string='FBR Fixed/Retail Price')
     fbr_st_withheld_at_source = fields.Float(string='FBR ST Withheld')
     fbr_extra_tax = fields.Float(string='FBR Extra Tax')
@@ -172,7 +192,8 @@ class AccountMoveLine(models.Model):
         help='Options depend on the selected SRO Schedule + invoice date - fetched live from FBR.')
     fbr_fed_payable = fields.Float(string='FBR FED Payable')
     fbr_discount = fields.Float(string='FBR Discount')
-    fbr_total_values = fields.Float(string='FBR Total Values')
+    fbr_total_values = fields.Float(
+        string='FBR Total Values', compute='_compute_fbr_total_values', store=True, readonly=False)
 
     # Odoo 18's client does NOT enforce a `domain` key returned from @api.onchange on Many2one
     # fields (confirmed empirically - the field still let you search/pick options outside that
@@ -185,6 +206,30 @@ class AccountMoveLine(models.Model):
         'fbr.sro.schedule', 'fbr_line_sro_schedule_allowed_rel', string='FBR SRO Schedule (allowed)')
     fbr_sro_item_allowed_ids = fields.Many2many(
         'fbr.sro.item', 'fbr_line_sro_item_allowed_rel', string='FBR SRO Item (allowed)')
+
+    @api.depends('price_subtotal', 'price_total')
+    def _compute_fbr_amounts(self):
+        for line in self:
+            line.fbr_value_sales_excluding_st = line.price_subtotal
+            # price_total - price_subtotal is Odoo's own tax amount for the line; correct for
+            # the common case of a single sales-tax-type charge, which is what every line built
+            # so far in this module actually has.
+            line.fbr_sales_tax_applicable = line.price_total - line.price_subtotal
+
+    # Same bug as _compute_fbr_amounts above: was a plain, never-populated Float, so every
+    # payload reported totalValues=0 regardless of the line's actual value - which is exactly
+    # the "totalvalues... not set in the payload" case FBR rejected. FBR's own schema treats
+    # this as the line's grand total, so it's the sum of the excl-ST value, the sales tax, and
+    # any of the extra manually-entered FBR tax components, net of discount.
+    @api.depends('fbr_value_sales_excluding_st', 'fbr_sales_tax_applicable', 'fbr_extra_tax',
+                 'fbr_further_tax', 'fbr_fed_payable', 'fbr_discount')
+    def _compute_fbr_total_values(self):
+        for line in self:
+            line.fbr_total_values = (
+                line.fbr_value_sales_excluding_st + line.fbr_sales_tax_applicable
+                + line.fbr_extra_tax + line.fbr_further_tax + line.fbr_fed_payable
+                - line.fbr_discount
+            )
 
     @api.onchange('product_id')
     def _onchange_product_id_fbr_defaults(self):
