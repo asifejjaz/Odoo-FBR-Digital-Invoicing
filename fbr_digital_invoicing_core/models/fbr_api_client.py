@@ -12,8 +12,15 @@ _logger = logging.getLogger(__name__)
 # schema that does NOT match what the user's own working production integration (AxiomSquare)
 # actually sends. The human-readable schema here (saleType/rate/uoM as descriptive text,
 # separate seller/buyer blocks) is what's confirmed real.
+# Three distinct endpoints, not two: sandbox validate (test data, no real record, needs a
+# scenarioId), production validate (real production data/business rules, still no real record -
+# a safe way to dry-run against production before ever filing), and production submit (the only
+# one of the three that creates a real, permanent tax filing). PRODUCTION_URL previously pointed
+# at a guessed PDF-documented path that was never actually confirmed live - corrected here to
+# the real endpoint, which - like the sandbox one - lives under the di_data/v1/di/ family.
 SANDBOX_VALIDATE_URL = 'https://gw.fbr.gov.pk/di_data/v1/di/validateinvoicedata_sb'
-PRODUCTION_URL = 'https://gw.fbr.gov.pk/pdi/v1/api/DigitalInvoicing/PostInvoiceData_v1'
+PRODUCTION_VALIDATE_URL = 'https://gw.fbr.gov.pk/di_data/v1/di/validateinvoicedata'
+PRODUCTION_URL = 'https://gw.fbr.gov.pk/di_data/v1/di/postinvoicedata'
 REG_TYPE_URL = 'https://gw.fbr.gov.pk/dist/v1/Get_Reg_Type'
 
 REFERENCE_ENDPOINTS = {
@@ -46,7 +53,9 @@ class FbrApiClient(models.AbstractModel):
         environment = get_param(f'fbr.environment.{company_id}', default='validation')
         # Sandbox and production are separate FBR-issued tokens (confirmed directly), not one
         # token shared across both URLs - pick the one matching whichever environment is active.
-        token_key = 'fbr.security_token_production' if environment == 'production' else 'fbr.security_token'
+        # Both production tiers (validate-only and submit) hit FBR's real production system, so
+        # both need the real production token, not the sandbox one.
+        token_key = 'fbr.security_token' if environment == 'validation' else 'fbr.security_token_production'
         token = get_param(f'{token_key}.{company_id}', default='')
         return environment, token
 
@@ -111,7 +120,11 @@ class FbrApiClient(models.AbstractModel):
         pick them up. FBR provides no server-side retry, so this module owns it.
         """
         environment, token = self._get_config(move.company_id)
-        url = SANDBOX_VALIDATE_URL if environment != 'production' else PRODUCTION_URL
+        url = {
+            'validation': SANDBOX_VALIDATE_URL,
+            'production_validate': PRODUCTION_VALIDATE_URL,
+            'production': PRODUCTION_URL,
+        }.get(environment, SANDBOX_VALIDATE_URL)
         payload = self._build_payload(move)
         log_vals = {
             'res_model': res_model,

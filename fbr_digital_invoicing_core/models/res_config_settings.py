@@ -11,8 +11,9 @@ class ResConfigSettings(models.TransientModel):
     # production token was provided distinct from the sandbox one already configured), so
     # these are two independent fields rather than one token shared across both URLs.
     fbr_environment = fields.Selection([
-        ('validation', 'Validation'),
-        ('production', 'Production'),
+        ('validation', 'Sandbox Validation'),
+        ('production_validate', 'Production - Validate Only'),
+        ('production', 'Production - Submit (real filing)'),
     ], string='FBR Mode', default='validation')
     fbr_security_token = fields.Char(string='FBR Security Token (Sandbox/Validation)')
     fbr_security_token_production = fields.Char(string='FBR Security Token (Production)')

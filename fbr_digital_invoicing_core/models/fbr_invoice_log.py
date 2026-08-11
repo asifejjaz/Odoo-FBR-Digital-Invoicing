@@ -13,8 +13,9 @@ class FbrInvoiceLog(models.Model):
     res_id = fields.Integer(required=True, index=True)
 
     environment = fields.Selection([
-        ('validation', 'Validation'),
-        ('production', 'Production'),
+        ('validation', 'Sandbox Validation'),
+        ('production_validate', 'Production - Validate Only'),
+        ('production', 'Production - Submit (real filing)'),
     ], required=True, default='validation')
 
     state = fields.Selection([
