@@ -72,7 +72,9 @@
                 <field name="fbr_rate_id" optional="hide" domain="[('id', 'in', fbr_rate_allowed_ids)]"/>
                 <field name="fbr_sro_schedule_id" optional="hide" domain="[('id', 'in', fbr_sro_schedule_allowed_ids)]"/>
                 <field name="fbr_sro_item_id" optional="hide" domain="[('id', 'in', fbr_sro_item_allowed_ids)]"/>
+                <field name="fbr_value_sales_excluding_st" optional="hide"/>
                 <field name="fbr_sales_tax_applicable" optional="hide"/>
+                <field name="fbr_total_values" optional="hide"/>
                 <field name="fbr_fixed_notified_value" optional="hide"/>
             </xpath>
 
