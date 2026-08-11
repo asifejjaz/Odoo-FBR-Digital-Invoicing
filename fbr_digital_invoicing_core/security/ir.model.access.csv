@@ -1,0 +1,11 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_fbr_uom_user,fbr.uom.user,model_fbr_uom,account.group_account_invoice,1,1,1,1
+access_fbr_hs_code_user,fbr.hs.code.user,model_fbr_hs_code,account.group_account_invoice,1,1,1,1
+access_fbr_province_user,fbr.province.user,model_fbr_province,account.group_account_invoice,1,1,1,1
+access_fbr_transaction_type_user,fbr.transaction.type.user,model_fbr_transaction_type,account.group_account_invoice,1,1,1,1
+access_fbr_doc_type_user,fbr.doc.type.user,model_fbr_doc_type,account.group_account_invoice,1,1,1,1
+access_fbr_tax_rate_user,fbr.tax.rate.user,model_fbr_tax_rate,account.group_account_invoice,1,1,1,1
+access_fbr_sro_schedule_user,fbr.sro.schedule.user,model_fbr_sro_schedule,account.group_account_invoice,1,1,1,1
+access_fbr_sro_item_user,fbr.sro.item.user,model_fbr_sro_item,account.group_account_invoice,1,1,1,1
+access_fbr_invoice_log_user,fbr.invoice.log.user,model_fbr_invoice_log,account.group_account_invoice,1,0,0,0
+access_fbr_invoice_log_manager,fbr.invoice.log.manager,model_fbr_invoice_log,account.group_account_manager,1,1,1,1

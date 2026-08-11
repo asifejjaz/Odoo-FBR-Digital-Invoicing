@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_move_form_inherit_fbr" model="ir.ui.view">
+        <field name="name">account.move.form.inherit.fbr</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_move_form"/>
+        <field name="arch" type="xml">
+
+            <!-- Smart button: FBR submission status + jump to the traceability log -->
+            <div name="button_box" position="inside">
+                <button name="action_view_fbr_logs" type="object" class="oe_stat_button" icon="fa-file-text-o"
+                        invisible="fbr_log_count == 0">
+                    <div class="o_stat_info">
+                        <span class="o_stat_text">FBR Log</span>
+                    </div>
+                </button>
+            </div>
+
+            <notebook position="inside">
+                <page string="FBR Digital Invoicing" name="fbr_digital_invoicing">
+                    <group>
+                        <group string="FBR Submission">
+                            <field name="fbr_doc_type_id"/>
+                            <field name="fbr_invoice_ref_no"/>
+                            <field name="fbr_scenario_id"/>
+                            <field name="fbr_status" widget="badge"
+                                   decoration-success="fbr_status == 'success'"
+                                   decoration-danger="fbr_status == 'failed'"
+                                   decoration-info="fbr_status == 'pending'"/>
+                            <field name="fbr_invoice_number"/>
+                            <field name="fbr_last_error"/>
+                        </group>
+                        <group string="Totals (computed from lines, editable if a manual correction is needed)">
+                            <field name="fbr_total_sales_tax_applicable"/>
+                            <field name="fbr_total_retail_price"/>
+                            <field name="fbr_total_st_withheld"/>
+                            <field name="fbr_total_extra_tax"/>
+                            <field name="fbr_total_fed_payable"/>
+                            <field name="fbr_total_discount"/>
+                        </group>
+                    </group>
+                    <group>
+                        <group string="Seller (defaults from your company)">
+                            <field name="fbr_seller_ntn_cnic"/>
+                            <field name="fbr_seller_business_name"/>
+                            <field name="fbr_seller_province_id"/>
+                            <field name="fbr_seller_address"/>
+                        </group>
+                        <group string="Buyer (defaults from the customer)">
+                            <field name="fbr_buyer_ntn_cnic"/>
+                            <field name="fbr_buyer_business_name"/>
+                            <field name="fbr_buyer_province_id"/>
+                            <field name="fbr_buyer_address"/>
+                            <field name="fbr_buyer_registration_type"/>
+                        </group>
+                    </group>
+                </page>
+            </notebook>
+
+            <!-- Item-wise FBR fields, incl. the cascading chain, as togglable (hidden by
+                 default) columns so the default invoicing UX isn't cluttered. -->
+            <xpath expr="//field[@name='invoice_line_ids']/list/field[@name='quantity']" position="after">
+                <field name="fbr_hs_code_id" optional="hide"/>
+                <field name="fbr_uom_id" optional="hide"/>
+                <field name="fbr_transaction_type_id" optional="hide"/>
+                <field name="fbr_rate_id" optional="hide"/>
+                <field name="fbr_sro_schedule_id" optional="hide"/>
+                <field name="fbr_sro_item_id" optional="hide"/>
+                <field name="fbr_sales_tax_applicable" optional="hide"/>
+                <field name="fbr_fixed_notified_value" optional="hide"/>
+            </xpath>
+
+        </field>
+    </record>
+</odoo>

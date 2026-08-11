@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_partner_form_inherit_fbr" model="ir.ui.view">
+        <field name="name">res.partner.form.inherit.fbr</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <field name="vat" position="after">
+                <field name="fbr_ntn_cnic"/>
+                <field name="fbr_province_id"/>
+                <label for="fbr_registration_status"/>
+                <div class="o_row">
+                    <field name="fbr_registration_status" widget="badge"
+                           decoration-success="fbr_registration_status == 'registered'"
+                           decoration-warning="fbr_registration_status == 'unregistered'"
+                           decoration-muted="fbr_registration_status == 'unknown'"/>
+                    <button name="action_fbr_check_registration" type="object"
+                            string="Check FBR Registration" class="btn-link" icon="fa-refresh"/>
+                </div>
+            </field>
+        </field>
+    </record>
+</odoo>

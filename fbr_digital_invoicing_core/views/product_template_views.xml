@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_template_form_inherit_fbr" model="ir.ui.view">
+        <field name="name">product.template.form.inherit.fbr</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_form_view"/>
+        <field name="arch" type="xml">
+            <notebook position="inside">
+                <page string="FBR Digital Invoicing" name="fbr_digital_invoicing">
+                    <group>
+                        <group string="Classification">
+                            <field name="fbr_hs_code_id"/>
+                            <field name="fbr_uom_id"/>
+                            <field name="fbr_transaction_type_id"/>
+                        </group>
+                        <group string="Defaults (invoice-line overridable)">
+                            <field name="fbr_rate_id"/>
+                            <field name="fbr_sro_schedule_id"/>
+                            <field name="fbr_sro_item_id"/>
+                        </group>
+                    </group>
+                </page>
+            </notebook>
+        </field>
+    </record>
+</odoo>
