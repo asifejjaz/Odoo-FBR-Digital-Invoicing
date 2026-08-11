@@ -129,13 +129,20 @@ class FbrApiClient(models.AbstractModel):
         try:
             response = requests.post(url, data=json.dumps(payload, default=str),
                                       headers=self._headers(token), timeout=REQUEST_TIMEOUT)
-            response_json = response.json()
         except requests.RequestException as exc:
             _logger.warning('FBR submission network error for %s #%s: %s', res_model, move.id, exc)
             log_vals.update(state='failed', error_message=str(exc))
             self.env['fbr.invoice.log'].sudo().create(log_vals)
             move.write({'fbr_status': 'failed', 'fbr_last_error': str(exc)[:255]})
             return False
+
+        # A separate try/except from the one above: requests' own JSONDecodeError is a
+        # subclass of RequestException (as well as ValueError), so if this were merged into
+        # the try block above it would be swallowed by that handler instead - which never
+        # captures response.text, discarding the one thing that would explain why FBR sent
+        # back something unparseable (confirmed - that's exactly what happened here).
+        try:
+            response_json = response.json()
         except ValueError:
             log_vals.update(state='failed', error_message='Non-JSON response from FBR', response_payload=response.text[:5000])
             self.env['fbr.invoice.log'].sudo().create(log_vals)
