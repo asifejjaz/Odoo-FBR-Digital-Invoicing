@@ -7,16 +7,22 @@
         <field name="arch" type="xml">
             <notebook position="inside">
                 <page string="FBR Digital Invoicing" name="fbr_digital_invoicing">
+                    <!-- Loaded so the domain="[('id','in', ...)]" expressions below can read them,
+                         not meant to be seen directly - populated live by the onchange cascade. -->
+                    <field name="fbr_uom_allowed_ids" invisible="1"/>
+                    <field name="fbr_rate_allowed_ids" invisible="1"/>
+                    <field name="fbr_sro_schedule_allowed_ids" invisible="1"/>
+                    <field name="fbr_sro_item_allowed_ids" invisible="1"/>
                     <group>
                         <group string="Classification">
                             <field name="fbr_hs_code_id"/>
-                            <field name="fbr_uom_id"/>
+                            <field name="fbr_uom_id" domain="[('id', 'in', fbr_uom_allowed_ids)]"/>
                             <field name="fbr_transaction_type_id"/>
                         </group>
                         <group string="Defaults (invoice-line overridable)">
-                            <field name="fbr_rate_id"/>
-                            <field name="fbr_sro_schedule_id"/>
-                            <field name="fbr_sro_item_id"/>
+                            <field name="fbr_rate_id" domain="[('id', 'in', fbr_rate_allowed_ids)]"/>
+                            <field name="fbr_sro_schedule_id" domain="[('id', 'in', fbr_sro_schedule_allowed_ids)]"/>
+                            <field name="fbr_sro_item_id" domain="[('id', 'in', fbr_sro_item_allowed_ids)]"/>
                         </group>
                     </group>
                 </page>

@@ -174,6 +174,18 @@ class AccountMoveLine(models.Model):
     fbr_discount = fields.Float(string='FBR Discount')
     fbr_total_values = fields.Float(string='FBR Total Values')
 
+    # Odoo 18's client does NOT enforce a `domain` key returned from @api.onchange on Many2one
+    # fields (confirmed empirically - the field still let you search/pick options outside that
+    # domain). The reliable mechanism is a real domain expression in the view referencing a
+    # field on the record - these Many2many fields hold exactly what each cascade step returned,
+    # and account_move_views.xml sets e.g. domain="[('id','in', fbr_uom_allowed_ids)]".
+    fbr_uom_allowed_ids = fields.Many2many('fbr.uom', 'fbr_line_uom_allowed_rel', string='FBR UoM (allowed)')
+    fbr_rate_allowed_ids = fields.Many2many('fbr.tax.rate', 'fbr_line_rate_allowed_rel', string='FBR Rate (allowed)')
+    fbr_sro_schedule_allowed_ids = fields.Many2many(
+        'fbr.sro.schedule', 'fbr_line_sro_schedule_allowed_rel', string='FBR SRO Schedule (allowed)')
+    fbr_sro_item_allowed_ids = fields.Many2many(
+        'fbr.sro.item', 'fbr_line_sro_item_allowed_rel', string='FBR SRO Item (allowed)')
+
     @api.onchange('product_id')
     def _onchange_product_id_fbr_defaults(self):
         for line in self:
@@ -193,15 +205,17 @@ class AccountMoveLine(models.Model):
         """Cascade 1: HS code -> UoM options (live FBR call: HS_UOM)."""
         for line in self:
             if not line.fbr_hs_code_id:
+                line.fbr_uom_allowed_ids = [(5, 0, 0)]
                 continue
             try:
                 uom_ids = line.env['fbr.api.client']._fetch_uom_for_hs_code(line.fbr_hs_code_id.code)
             except Exception:
                 _logger.exception('FBR HS_UOM lookup failed for %s', line.fbr_hs_code_id.code)
                 continue
-            if uom_ids and (not line.fbr_uom_id or line.fbr_uom_id.fbr_id not in uom_ids):
-                line.fbr_uom_id = line.env['fbr.uom'].search([('fbr_id', '=', uom_ids[0])], limit=1)
-            return {'domain': {'fbr_uom_id': [('fbr_id', 'in', uom_ids)]}} if uom_ids else {}
+            allowed = line.env['fbr.uom'].search([('fbr_id', 'in', uom_ids)])
+            line.fbr_uom_allowed_ids = [(6, 0, allowed.ids)]
+            if allowed and (not line.fbr_uom_id or line.fbr_uom_id.fbr_id not in uom_ids):
+                line.fbr_uom_id = allowed[0]
 
     def _fbr_cascade_date(self, move):
         # invoice_date shows "Today" as a placeholder in the UI but is NOT actually set on a
@@ -216,6 +230,7 @@ class AccountMoveLine(models.Model):
         for line in self:
             move = line.move_id
             if not line.fbr_transaction_type_id:
+                line.fbr_rate_allowed_ids = [(5, 0, 0)]
                 continue
             if not move.fbr_seller_province_id:
                 return {'warning': {
@@ -235,7 +250,8 @@ class AccountMoveLine(models.Model):
             except Exception as exc:
                 _logger.exception('FBR SaleTypeToRate lookup failed for transaction type %s', line.fbr_transaction_type_id.fbr_id)
                 return {'warning': {'title': 'FBR rate lookup failed', 'message': str(exc)}}
-            return {'domain': {'fbr_rate_id': [('fbr_id', 'in', rate_ids)]}} if rate_ids else {}
+            allowed = line.env['fbr.tax.rate'].search([('fbr_id', 'in', rate_ids)])
+            line.fbr_rate_allowed_ids = [(6, 0, allowed.ids)]
 
     @api.onchange('fbr_rate_id')
     def _onchange_fbr_rate_id(self):
@@ -243,6 +259,7 @@ class AccountMoveLine(models.Model):
         for line in self:
             move = line.move_id
             if not line.fbr_rate_id or not move.fbr_seller_province_id:
+                line.fbr_sro_schedule_allowed_ids = [(5, 0, 0)]
                 continue
             try:
                 sro_ids = line.env['fbr.api.client']._fetch_sro_schedules_for_rate(
@@ -253,7 +270,8 @@ class AccountMoveLine(models.Model):
             except Exception as exc:
                 _logger.exception('FBR SroSchedule lookup failed for rate %s', line.fbr_rate_id.fbr_id)
                 return {'warning': {'title': 'FBR SRO schedule lookup failed', 'message': str(exc)}}
-            return {'domain': {'fbr_sro_schedule_id': [('fbr_id', 'in', sro_ids)]}} if sro_ids else {}
+            allowed = line.env['fbr.sro.schedule'].search([('fbr_id', 'in', sro_ids)])
+            line.fbr_sro_schedule_allowed_ids = [(6, 0, allowed.ids)]
 
     @api.onchange('fbr_sro_schedule_id')
     def _onchange_fbr_sro_schedule_id(self):
@@ -261,6 +279,7 @@ class AccountMoveLine(models.Model):
         for line in self:
             move = line.move_id
             if not line.fbr_sro_schedule_id:
+                line.fbr_sro_item_allowed_ids = [(5, 0, 0)]
                 continue
             try:
                 item_ids = line.env['fbr.api.client']._fetch_sro_items_for_schedule(
@@ -269,4 +288,5 @@ class AccountMoveLine(models.Model):
             except Exception as exc:
                 _logger.exception('FBR SROItem lookup failed for schedule %s', line.fbr_sro_schedule_id.fbr_id)
                 return {'warning': {'title': 'FBR SRO item lookup failed', 'message': str(exc)}}
-            return {'domain': {'fbr_sro_item_id': [('fbr_id', 'in', item_ids)]}} if item_ids else {}
+            allowed = line.env['fbr.sro.item'].search([('fbr_id', 'in', item_ids)])
+            line.fbr_sro_item_allowed_ids = [(6, 0, allowed.ids)]

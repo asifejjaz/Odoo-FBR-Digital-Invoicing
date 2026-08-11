@@ -60,12 +60,18 @@
             <!-- Item-wise FBR fields, incl. the cascading chain, as togglable (hidden by
                  default) columns so the default invoicing UX isn't cluttered. -->
             <xpath expr="//field[@name='invoice_line_ids']/list/field[@name='quantity']" position="after">
+                <!-- Loaded so the domain="[('id','in', ...)]" expressions below can read them,
+                     not meant to be seen directly - populated live by the onchange cascade. -->
+                <field name="fbr_uom_allowed_ids" column_invisible="1"/>
+                <field name="fbr_rate_allowed_ids" column_invisible="1"/>
+                <field name="fbr_sro_schedule_allowed_ids" column_invisible="1"/>
+                <field name="fbr_sro_item_allowed_ids" column_invisible="1"/>
                 <field name="fbr_hs_code_id" optional="hide"/>
-                <field name="fbr_uom_id" optional="hide"/>
+                <field name="fbr_uom_id" optional="hide" domain="[('id', 'in', fbr_uom_allowed_ids)]"/>
                 <field name="fbr_transaction_type_id" optional="hide"/>
-                <field name="fbr_rate_id" optional="hide"/>
-                <field name="fbr_sro_schedule_id" optional="hide"/>
-                <field name="fbr_sro_item_id" optional="hide"/>
+                <field name="fbr_rate_id" optional="hide" domain="[('id', 'in', fbr_rate_allowed_ids)]"/>
+                <field name="fbr_sro_schedule_id" optional="hide" domain="[('id', 'in', fbr_sro_schedule_allowed_ids)]"/>
+                <field name="fbr_sro_item_id" optional="hide" domain="[('id', 'in', fbr_sro_item_allowed_ids)]"/>
                 <field name="fbr_sales_tax_applicable" optional="hide"/>
                 <field name="fbr_fixed_notified_value" optional="hide"/>
             </xpath>
