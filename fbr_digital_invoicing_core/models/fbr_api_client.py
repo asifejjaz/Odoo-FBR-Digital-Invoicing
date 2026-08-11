@@ -44,7 +44,10 @@ class FbrApiClient(models.AbstractModel):
         get_param = self.env['ir.config_parameter'].sudo().get_param
         company_id = company.id
         environment = get_param(f'fbr.environment.{company_id}', default='validation')
-        token = get_param(f'fbr.security_token.{company_id}', default='')
+        # Sandbox and production are separate FBR-issued tokens (confirmed directly), not one
+        # token shared across both URLs - pick the one matching whichever environment is active.
+        token_key = 'fbr.security_token_production' if environment == 'production' else 'fbr.security_token'
+        token = get_param(f'{token_key}.{company_id}', default='')
         return environment, token
 
     def _headers(self, token):

@@ -7,14 +7,15 @@ class ResConfigSettings(models.TransientModel):
     # Stored per-company via ir.config_parameter (see get_values/set_values below) rather than
     # the standard single-key config_parameter=... shortcut, since the key needs the company id
     # baked in - a plain config_parameter field would be shared across all companies.
-    # Same payload, same security token, only the URL differs - "validation" hits FBR's
-    # validateinvoicedata_sb endpoint (pre-submit check, does not create a real tax record),
-    # "production" hits the real PostInvoiceData_v1 endpoint (creates a real tax filing).
+    # FBR issues a SEPARATE security token per environment (confirmed directly - a real
+    # production token was provided distinct from the sandbox one already configured), so
+    # these are two independent fields rather than one token shared across both URLs.
     fbr_environment = fields.Selection([
         ('validation', 'Validation'),
         ('production', 'Production'),
     ], string='FBR Mode', default='validation')
-    fbr_security_token = fields.Char(string='FBR Security Token')
+    fbr_security_token = fields.Char(string='FBR Security Token (Sandbox/Validation)')
+    fbr_security_token_production = fields.Char(string='FBR Security Token (Production)')
 
     def set_values(self):
         super().set_values()
@@ -22,6 +23,7 @@ class ResConfigSettings(models.TransientModel):
         set_param = self.env['ir.config_parameter'].sudo().set_param
         set_param(f'fbr.environment.{company_id}', self.fbr_environment or 'validation')
         set_param(f'fbr.security_token.{company_id}', self.fbr_security_token or '')
+        set_param(f'fbr.security_token_production.{company_id}', self.fbr_security_token_production or '')
 
     @api.model
     def get_values(self):
@@ -31,6 +33,7 @@ class ResConfigSettings(models.TransientModel):
         res.update(
             fbr_environment=get_param(f'fbr.environment.{company_id}', default='validation'),
             fbr_security_token=get_param(f'fbr.security_token.{company_id}', default=''),
+            fbr_security_token_production=get_param(f'fbr.security_token_production.{company_id}', default=''),
         )
         return res
 

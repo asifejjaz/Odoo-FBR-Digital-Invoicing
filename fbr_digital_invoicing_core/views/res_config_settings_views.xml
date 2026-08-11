@@ -7,11 +7,14 @@
         <field name="arch" type="xml">
             <xpath expr="//block[@id='invoicing_settings']" position="after">
                 <block title="FBR Digital Invoicing" id="fbr_digital_invoicing_settings">
-                    <setting help="Validation hits FBR's validateinvoicedata_sb endpoint (pre-submit check, no real tax record created). Production hits the real PostInvoiceData_v1 endpoint - only switch once you're actually ready to file real invoices. Same token either way.">
+                    <setting help="Validation hits FBR's validateinvoicedata_sb endpoint (pre-submit check, no real tax record created). Production hits the real PostInvoiceData_v1 endpoint - only switch once you're actually ready to file real invoices. Whichever mode is active determines which token below gets used.">
                         <field name="fbr_environment" widget="radio"/>
                     </setting>
-                    <setting help="Security token issued by FBR/PRAL during registration (IRIS &gt; Digital Invoicing &gt; API Integration).">
+                    <setting help="Sandbox/validation token issued by FBR/PRAL (IRIS &gt; Digital Invoicing &gt; API Integration). Used only while FBR Mode above is Validation.">
                         <field name="fbr_security_token" password="True"/>
+                    </setting>
+                    <setting help="Production token issued by FBR/PRAL - separate from the sandbox token above. Used only once FBR Mode is switched to Production.">
+                        <field name="fbr_security_token_production" password="True"/>
                     </setting>
                     <setting help="Pulls UoM, HS codes, provinces, sale types, doc types and SRO items live from FBR. Save this page first so the token above is persisted.">
                         <button name="action_fbr_sync_reference_data" type="object"
